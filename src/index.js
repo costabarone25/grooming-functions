@@ -39,6 +39,11 @@ async function sendFCM(token, title, body, data = {}) {
 }
 
 module.exports = async (req, res) => {
+    // Защита от ручного запуска без заголовков
+    if (!req || !req.headers) {
+        console.log('ℹ️ Ручной запуск без заголовков.');
+        return res.json({ message: 'Manual execution, no headers.' });
+    }
     const event = req.headers['x-appwrite-event'] || req.body.event;
     if (!event) {
         console.log('ℹ️ Ручной запуск (без события).');
