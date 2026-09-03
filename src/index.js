@@ -38,17 +38,33 @@ async function sendFCM(token, title, body, data = {}) {
     }
 }
 
+async function getSalonOwner(salonId) {
+    if (!salonId) return null;
+    try {
+        const res = await databases.listDocuments(
+            process.env.DATABASE_ID,
+            process.env.USERS_TABLE_ID,
+            [
+                sdk.Query.equal('salonId', salonId),
+                sdk.Query.equal('role', 'salon')
+            ]
+        );
+        if (res.documents.length > 0) return res.documents[0].data.userId;
+    } catch (e) { console.error(e); }
+    return null;
+}
+
 module.exports = async (req, res) => {
-    // Защита от ручного запуска без заголовков
-    if (!req || !req.headers) {
-        console.log('ℹ️ Ручной запуск без заголовков.');
-        return res.json({ message: 'Manual execution, no headers.' });
-    }
-    const event = req.headers['x-appwrite-event'] || req.body.event;
+    // ========== ЗАЩИТА ОТ РУЧНОГО ЗАПУСКА ==========
+    const event = req.headers && req.headers['x-appwrite-event'] 
+        ? req.headers['x-appwrite-event'] 
+        : (req.body && req.body.event ? req.body.event : null);
+    
     if (!event) {
-        console.log('ℹ️ Ручной запуск (без события).');
+        console.log('ℹ️ Ручной запуск или тестовый вызов. Пропускаем.');
         return res.json({ message: 'Manual execution, no event processed.' });
     }
+    // ================================================
 
     const payload = req.body.payload || {};
     const doc = payload.document || {};
@@ -78,9 +94,8 @@ module.exports = async (req, res) => {
 
             if (event.includes('update')) {
                 const oldData = payload.oldDocument?.data || {};
-                const newData = data;
                 const oldStatus = oldData.status || 'pending';
-                const newStatus = newData.status || 'pending';
+                const newStatus = data.status || 'pending';
 
                 if (oldStatus !== 'approved' && newStatus === 'approved') {
                     const token = await getUserToken(userId);
@@ -137,19 +152,3 @@ module.exports = async (req, res) => {
         res.json({ error: e.message });
     }
 };
-
-async function getSalonOwner(salonId) {
-    if (!salonId) return null;
-    try {
-        const res = await databases.listDocuments(
-            process.env.DATABASE_ID,
-            process.env.USERS_TABLE_ID,
-            [
-                sdk.Query.equal('salonId', salonId),
-                sdk.Query.equal('role', 'salon')
-            ]
-        );
-        if (res.documents.length > 0) return res.documents[0].data.userId;
-    } catch (e) { console.error(e); }
-    return null;
-}
