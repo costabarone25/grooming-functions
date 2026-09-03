@@ -15,7 +15,9 @@ async function sendFCM(token, title, body, data = {}) {
     try {
         await admin.messaging().send({ token, notification: { title, body }, data });
         console.log(`✅ Напоминание отправлено: ${title}`);
-    } catch (e) { console.error('❌ Ошибка FCM:', e); }
+    } catch (e) {
+        console.error('❌ Ошибка FCM:', e);
+    }
 }
 
 async function getUserToken(userId) {
@@ -26,7 +28,9 @@ async function getUserToken(userId) {
             [sdk.Query.equal('userId', userId)]
         );
         if (res.documents.length > 0) return res.documents[0].data.deviceToken || null;
-    } catch (e) { console.error(e); }
+    } catch (e) {
+        console.error(e);
+    }
     return null;
 }
 
@@ -44,6 +48,8 @@ module.exports = async (req, res) => {
                 sdk.Query.notEqual('status', 'cancelled')
             ]
         );
+
+        console.log(`📅 Найдено записей на сегодня: ${appts.documents.length}`);
 
         for (const doc of appts.documents) {
             const data = doc.data;
@@ -74,6 +80,7 @@ module.exports = async (req, res) => {
                     doc.$id,
                     { notified_30min: true }
                 );
+                console.log(`⏰ Напоминание за 30 минут отправлено для записи ${doc.$id}`);
             }
 
             // За 24 часа
@@ -92,12 +99,20 @@ module.exports = async (req, res) => {
                     doc.$id,
                     { notified_24h: true }
                 );
+                console.log(`📆 Напоминание за 24 часа отправлено для записи ${doc.$id}`);
             }
         }
 
-        res.json({ success: true });
+        // === ЗАЩИТА ОТ ОТСУТСТВИЯ res ===
+        if (res && typeof res.json === 'function') {
+            res.json({ success: true });
+        } else {
+            console.log('ℹ️ Функция завершена (ответ не отправлен, так как res недоступен)');
+        }
     } catch (e) {
-        console.error(e);
-        res.json({ error: e.message });
+        console.error('❌ Ошибка в функции:', e);
+        if (res && typeof res.json === 'function') {
+            res.json({ error: e.message });
+        }
     }
 };
