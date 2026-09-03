@@ -40,7 +40,10 @@ async function sendFCM(token, title, body, data = {}) {
 
 module.exports = async (req, res) => {
     const event = req.headers['x-appwrite-event'] || req.body.event;
-    if (!event) return res.json({ error: 'Missing event' });
+    if (!event) {
+        console.log('ℹ️ Ручной запуск (без события).');
+        return res.json({ message: 'Manual execution, no event processed.' });
+    }
 
     const payload = req.body.payload || {};
     const doc = payload.document || {};
